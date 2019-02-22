@@ -11,9 +11,6 @@ from torchvision import datasets, transforms
 from torchvision.utils import make_grid
 from IPython.display import clear_output, display
 
-# Testing git
-
-
 class Generator(nn.Module):
     def __init__(self, latent_size):
         super().__init__()
@@ -104,14 +101,13 @@ def main():
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
     print(train_loader)
     test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4)
-    ptin
 
     generator = Generator(latent_size)
     discriminator = Discriminator()
     gen_optimiser = optim.Adam(generator.parameters(), lr=1e-3, betas=(0.5, 0.999))
     disc_optimiser = optim.Adam(discriminator.parameters(), lr=1e-3, betas=(0.5, 0.999))
 
-    for f in range(10):
+    for f in range(1):
         train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader, batch_size, latent_size)
         sample(generator)
     clear_output(wait=True)
