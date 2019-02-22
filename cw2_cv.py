@@ -55,6 +55,7 @@ class Discriminator(nn.Module):
 
 def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader, batch_size, latent_size):
     for i, (real_x, _) in enumerate(train_loader):
+        print(type(real_x))
         disc_optimiser.zero_grad()
         # Train discriminator to identify real data
         real_y = discriminator(real_x)
@@ -85,13 +86,12 @@ def sample(generator):
         samples = make_grid(generator(z_samples), padding=0)
         interps = make_grid(generator(z_interp), padding=0)
         plt.imshow(np.transpose(torch.cat([samples, black_bar, interps], 2).numpy(), [1, 2, 0]))
-        pl.savefig("mnist.png")
         plt.show()
         clear_output(wait=True)
         display(plt.gcf())
 
 def main():
-    latent_size = 1
+    latent_size = 10
     batch_size = 64
 
     data_path = os.path.join(os.path.expanduser('~'), '.torch', 'datasets', 'mnist')
@@ -99,7 +99,6 @@ def main():
     test_data = datasets.MNIST(data_path, train=False, transform=transforms.ToTensor())
 
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4)
-    print(train_loader)
     test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
     generator = Generator(latent_size)
