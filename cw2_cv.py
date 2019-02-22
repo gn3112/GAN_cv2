@@ -106,7 +106,7 @@ def main():
     gen_optimiser = optim.Adam(generator.parameters(), lr=1e-3, betas=(0.5, 0.999))
     disc_optimiser = optim.Adam(discriminator.parameters(), lr=1e-3, betas=(0.5, 0.999))
 
-    for f in range(1):
+    for f in range(2):
         train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader, batch_size, latent_size)
         sample(generator)
     clear_output(wait=True)
