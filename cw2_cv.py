@@ -11,6 +11,8 @@ from torchvision import datasets, transforms
 from torchvision.utils import make_grid
 from IPython.display import clear_output, display
 
+# Testing git
+
 
 class Generator(nn.Module):
     def __init__(self, latent_size):
