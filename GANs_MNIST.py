@@ -79,7 +79,7 @@ def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader,
         loss = fake_loss.detach().numpy()
         loss_g = np.append(loss_g, loss)
 
-    return loss_d, loss_ggg
+    return loss_d, loss_g
 
 def sample(generator):
     generator.eval()
