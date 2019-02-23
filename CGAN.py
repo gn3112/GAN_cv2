@@ -101,7 +101,7 @@ def main():
     plt.interactive(True)
     latent_size = 10
     batch_size = 128
-    epoch = 1
+    epoch = 6
 
     transform = transforms.Compose(
     [transforms.ToTensor(),
