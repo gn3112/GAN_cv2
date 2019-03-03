@@ -8,7 +8,7 @@ from torch.distributions import Normal
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, save_image
 from IPython.display import clear_output, display
 
 class Generator(nn.Module):
@@ -28,6 +28,7 @@ class Generator(nn.Module):
         x = F.relu(self.bn1(self.conv1(z)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
+        print((torch.tanh(self.conv4(x))).size())
         return torch.tanh(self.conv4(x))
 
 
@@ -97,10 +98,32 @@ def sample(generator):
         # display(plt.gcf())
         return fig
 
+
+def create_directories():
+    dir_path = os.getcwd()
+    if not os.path.exists("fake_mnist"):
+        os.makedirs("fake_mnist")
+
+    for digits in range(10):
+        os.makedirs(dir_path + "/fake_mnist/" + str(digits))
+
+def new_dataset(n_img,digit):
+    dir_path = os.getcwd()
+
+    for i in range(n_img):
+        save_image(n_img[i], dir_path +  "/fake_mnist/" + str(digit) + "img" + str(i) +".png")
+
+def export_nn_model(model,path):
+    torch.save(model.state_dict(),path)
+    model.load_state_dict(torch.load(path))
+    model.eval()
+
+
 def main():
+    create_directories()
     plt.interactive(True)
     latent_size = 10
-    batch_size = 128
+    batch_size = 64
     epoch = 6
 
     transform = transforms.Compose(
