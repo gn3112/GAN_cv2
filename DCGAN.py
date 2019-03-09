@@ -15,7 +15,7 @@ class Generator(nn.Module):
     def __init__(self, latent_size):
         super().__init__()
         self.latent_size = latent_size
-        self.conv1 = nn.ConvTranspose2d(latent_size, 64, 5, stride=2)
+        self.conv1 = nn.ConvTranspose2d(latent_size, 32, 5, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.ConvTranspose2d(32, 16, 4, stride=2, padding=2, output_padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(16)
@@ -26,10 +26,8 @@ class Generator(nn.Module):
     def forward(self, z):
         z = z.view(-1, self.latent_size, 1, 1)
         x = F.relu(self.bn1(self.conv1(z)))
-        print(x.size())
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        print((torch.tanh(self.conv4(x))).size())
         return torch.tanh(self.conv4(x))
 
 
@@ -53,9 +51,6 @@ class Discriminator(nn.Module):
         x = F.leaky_relu(self.bn3(self.conv3(x)), 0.2)
         return torch.sigmoid(self.conv4(x)).view(-1)
         plt.axis('off')
-
-def out_size_tconv(in_size,stride,padding,kernel,output_padding):
-    return out_size = (in_size - 1) * stride - 2 * padding + kernel + output_padding
 
 def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader, batch_size, latent_size):
     loss_g = []
@@ -101,29 +96,7 @@ def sample(generator):
         # display(plt.gcf())
         return fig
 
-
-def create_directories():
-    dir_path = os.getcwd()
-    if not os.path.exists("fake_mnist"):
-        os.makedirs("fake_mnist")
-
-    for digits in range(10):
-        os.makedirs(dir_path + "/fake_mnist/" + str(digits))
-
-def new_dataset(n_img,digit):
-    dir_path = os.getcwd()
-
-    for i in range(n_img):
-        save_image(n_img[i], dir_path +  "/fake_mnist/" + str(digit) + "img" + str(i) +".png")
-
-def export_nn_model(model,path):
-    torch.save(model.state_dict(),path)
-    model.load_state_dict(torch.load(path))
-    model.eval()
-
-
 def main():
-    create_directories()
     plt.interactive(True)
     latent_size = 10
     batch_size = 64
