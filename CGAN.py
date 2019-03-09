@@ -141,7 +141,7 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
 # training parameters
 batch_size = 128
 lr = 0.0002
-train_epoch = 50
+train_epoch = 2
 
 # data_loader
 transform = transforms.Compose([
