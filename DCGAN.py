@@ -15,7 +15,7 @@ class Generator(nn.Module):
     def __init__(self, latent_size):
         super().__init__()
         self.latent_size = latent_size
-        self.conv1 = nn.ConvTranspose2d(latent_size, 32, 4, bias=False)
+        self.conv1 = nn.ConvTranspose2d(latent_size, 64, 5, stride=2)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.ConvTranspose2d(32, 16, 4, stride=2, padding=2, output_padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(16)
@@ -26,6 +26,7 @@ class Generator(nn.Module):
     def forward(self, z):
         z = z.view(-1, self.latent_size, 1, 1)
         x = F.relu(self.bn1(self.conv1(z)))
+        print(x.size())
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
         print((torch.tanh(self.conv4(x))).size())
@@ -52,6 +53,9 @@ class Discriminator(nn.Module):
         x = F.leaky_relu(self.bn3(self.conv3(x)), 0.2)
         return torch.sigmoid(self.conv4(x)).view(-1)
         plt.axis('off')
+
+def out_size_tconv(in_size,stride,padding,kernel,output_padding):
+    return out_size = (in_size - 1) * stride - 2 * padding + kernel + output_padding
 
 def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader, batch_size, latent_size):
     loss_g = []
@@ -88,7 +92,6 @@ def sample(generator):
     with torch.no_grad():
         z_samples = torch.randn(64, 10)
         z_interp = torch.zeros(64, 10)
-        img = generator(z_samples)
         samples = make_grid(generator(z_samples), padding=0)
         interps = make_grid(generator(z_interp), padding=0)
         fig = plt.figure()
