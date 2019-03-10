@@ -15,7 +15,7 @@ class Generator(nn.Module):
     def __init__(self, latent_size):
         super().__init__()
         self.latent_size = latent_size
-        self.conv1 = nn.ConvTranspose2d(latent_size, 32, 5, bias=False)
+        self.conv1 = nn.ConvTranspose2d(latent_size, 32, 4, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.ConvTranspose2d(32, 16, 4, stride=2, padding=2, output_padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(16)
@@ -91,7 +91,7 @@ def sample(generator):
         interps = make_grid(generator(z_interp), padding=0)
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
-        ax.imshow(np.transpose(torch.cat([samples, black_bar, interps], 2).numpy(), [1, 2, 0]))
+        ax.imshow(np.transpose(((torch.cat([samples, black_bar, interps], 2)+1)/2).numpy(), [1, 2, 0]))
         # clear_output(wait=True)
         # display(plt.gcf())
         return fig
@@ -126,7 +126,6 @@ def main():
         fig = sample(generator)
         img_p = "mnist_epoch" + str(f) + ".png"
         fig.savefig(img_p)
-
         loss_d_log = np.append(loss_d_log,loss_d)
         loss_g_log = np.append(loss_g_log,loss_g)
         plt.figure(f)
