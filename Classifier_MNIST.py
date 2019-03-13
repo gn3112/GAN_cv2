@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
 from scipy.stats import entropy
+import numpy as np
+import random
 
 
 class Classifier(nn.Module):
@@ -51,40 +53,38 @@ def train(classifier, optimiser, train_loader,ep):
         if batch_idx % 100 == 0 and batch_idx !=0:
             print("---- Iteration: " + str(batch_idx) + " in Epoch: " + str(ep+1) + " Loss: " + str(loss.detach().numpy()) + " ----")
 
-def inception_score(classifier, data_path):
-    batch_size = 256
+def inception_score(classifier, indices, data):
+    classifier.eval()
     n_split = 10
-
-    data = datasets.ImageFolder(root=data_path, transform=transform)
-    data_loader = DataLoader(data, batch_size=batch_size, shuffle=True, num_workers=4)
+    n_img = 10000
+    batch_size = n_img // 10
+    data_loader = DataLoader(data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
     proba_all = []
     label_all = []
     for batch_idx, (img, label) in enumerate(data_loader):
-        proba = classifier(b)
-        proba = proba.numpy()
+        proba = classifier(img)
+        proba = proba.exp().detach().numpy()
 
         proba_all.append(proba)
         label_all.append(label)
 
+    proba_all = np.array(proba_all)
     # inception score
-    py = np.mean(proba_all, axis=0)
-    n_img = proba_all.shape[0]
-    n_img_split = n_img//n_split
+    # n_img = proba_all.shape[0]
+    # n_img_split = n_img//n_split
     scores = []
     scores_splits = []
     for split in range(n_split):
-        for i in range(split*n_img_split,(1+split)*n_img_split):
-            pyx = proba[i,:]
+        proba_s = proba_all[split,:,:]
+        proba_s = np.reshape(proba_s,(-1,10,1))
+        py = np.mean(proba_s, axis=0)
+        for i in range(proba_s.shape[0]):
+            pyx = proba_s[i]
             scores.append(entropy(pyx,py))
 
         scores_splits.append(np.exp(np.mean(scores)))
 
-    # accuracy
-    _, idx = proba_all.max(dim=1)
-    n_correct = ((idx - label_all) == 0).sum(dim=0)
-    accuracy = n_correct.numpy()/(n_img)
-
-    return np.mean(scores_splits), np.std(scores_splits), accuracy
+    return np.mean(scores_splits), np.std(scores_splits)
 
 def export_nn_model(model,path):
     torch.save(model.state_dict(),path)
@@ -93,12 +93,13 @@ def export_nn_model(model,path):
 
 def main():
     epoch = 10
-    batch_size = 256
+    batch_size = 128
 
     data_path = os.path.join(os.path.expanduser('~'), '.torch', 'datasets', 'mnist')
 
     transform = transforms.Compose(
     [transforms.Resize(size=(32, 32)),
+    transforms.Grayscale(num_output_channels=1),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
      ])
@@ -112,11 +113,25 @@ def main():
     classifier = Classifier()
     optimiser = optim.Adam(classifier.parameters(), lr=2e-3, betas=(0.5, 0.999))
 
-    for ep in range(epoch):
-        train(classifier, optimiser, train_loader,ep)
+    # for ep in range(epoch):
+    #     train(classifier, optimiser, train_loader,ep)
 
-    test(classifier, test_loader)
-    inception_score(classifier, data_path="/fake_mnist/")
+    classifier.load_state_dict(torch.load("classifier_mnist.pth"))
+    classifier.eval()
+
+    # torch.save(classifier.state_dict(),"classifier_mnist.pth")
+
+    path_fake_data = "/cDCGAN_fake/"
+    fake_data = datasets.ImageFolder(root='cDCGAN_fake',
+                                           transform=transform)
+    indices = list(range(len(fake_data)))
+    random.shuffle(indices)
+    datafake_loader = DataLoader(fake_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
+
+    accuracy = test(classifier, datafake_loader)
+    incep_score = inception_score(classifier, indices, fake_data)
+    print("Accuracy: ", accuracy)
+    print("Inception score: ", incep_score)
 
 
 if __name__ == "__main__":
