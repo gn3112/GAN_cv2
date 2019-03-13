@@ -9,6 +9,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
+from matplotlib.ticker import MaxNLocator
+from torchvision.utils import make_grid, save_image
+import numpy as np
 
 # G(z)
 class generator(nn.Module):
@@ -151,7 +154,8 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
     plt.tight_layout()
 
     if save:
-        plt.savefig(path)
+        fig = sample(generator,device)
+        fig.savefig('cDCGAN/epoch'+str(f+1)+'.png')
 
     if show:
         plt.show()
@@ -159,8 +163,9 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
         plt.close()
 
 def train(G, D, G_optimizer, D_optimizer, train_loader, epoch, BCE_loss, device):
-
-    for x_, y_ in train_loader:
+    D_losses = []
+    G_losses = []
+    for batch_idx, (x_, y_) in enumerate(train_loader):
         # train discriminator D
         D.zero_grad()
 
@@ -182,6 +187,7 @@ def train(G, D, G_optimizer, D_optimizer, train_loader, epoch, BCE_loss, device)
         y_label_.scatter_(1, y_.view(mini_batch, 1), 1)
 
         z_, y_label_ = Variable(z_), Variable(y_label_)
+
 
         G_result = G(z_.to(device), y_label_.to(device))
 
@@ -210,12 +216,39 @@ def train(G, D, G_optimizer, D_optimizer, train_loader, epoch, BCE_loss, device)
         G_loss.backward()
         G_optimizer.step()
 
-    return D_loss, G_loss
+        D_losses.append(D_loss)
+        G_losses.append(G_loss)
 
+    loss_d = 1/(batch_idx+1) * sum(D_losses)
+    loss_g = 1/(batch_idx+1) * sum(G_losses)
+    return loss_d, loss_g
+
+def sample(generator, device):
+    n_img = 100
+    generator.eval()
+    with torch.no_grad():
+        z_samples = torch.randn(n_img, 100)
+        z_interp = torch.zeros(n_img, 10)
+
+        y_label = torch.tensor([])
+        for digits in range(10):
+            sgl_label = torch.zeros(n_img//10,10)
+            sgl_label[:,digits] = 1
+            y_label = torch.cat([y_label,sgl_label],0)
+
+        img = generator(z_samples.to(device),y_label.to(device))
+        img = torch.reshape(img, (100,1,28,-1))
+        samples = make_grid(img,nrow=10, padding=2)
+        # interps = make_grid(generator(z_interp.to(device),y_label.to(device)),nrow=6, padding=0)
+        samples = ((samples.cpu())+1)/2
+        # interps = ((interps.cpu())+1)/2
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.set_axis_off()
+        ax.imshow(np.transpose((samples).numpy(), [1, 2, 0]))
+    return fig
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else print("cuda not available"))
-
-    plt.interactive(True)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     latent_size = 100
     batch_size = 128
     epochs = 50
@@ -278,6 +311,7 @@ def main():
     D_losses = []
     G_losses = []
     for epoch in range(epochs):
+        print("Epoch: " + str(epoch+1))
         epoch_start_time = time.time()
         # learning rate decay
         if (epoch+1) == 30:
@@ -298,14 +332,25 @@ def main():
         epoch_end_time = time.time()
         per_epoch_ptime = epoch_end_time - epoch_start_time
 
+        fig2 = plt.figure()
+        ax2 = fig2.gca()
+        plt.plot(D_losses, label='D_loss')
+        plt.plot(G_losses, label='G_loss')
+        plt.legend(loc=4)
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.grid(True)
+        ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig('MNIST_cGAN_results/loss.png')
+        plt.close(fig2)
 
-        print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), epochs, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),
-                                                                  torch.mean(torch.FloatTensor(G_losses))))
-        fixed_p = 'MNIST_cGAN_results/Fixed_results/MNIST_cGAN_' + str(epoch + 1) + '.png'
-        show_result((epoch+1), G, fixed_z_, fixed_y_label_, save=True, path=fixed_p, device=device)
-        train_hist['D_losses'].append(torch.mean(torch.FloatTensor(D_losses)))
-        train_hist['G_losses'].append(torch.mean(torch.FloatTensor(G_losses)))
-        train_hist['per_epoch_ptimes'].append(per_epoch_ptime)
+        fig = sample(G,device)
+        fig.savefig('MNIST_cGAN_results/epoch'+str(epoch+1)+'.png')
+        plt.close(fig)
+
+        if epoch == 19:
+            torch.save(G.state_dict(), "MNIST_cGAN_results/generator_param_ep20.pth")
+
 
     end_time = time.time()
     total_ptime = end_time - start_time
@@ -316,17 +361,7 @@ def main():
     print("Avg one epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), epochs, total_ptime))
     print("Training finish!... save training results")
     torch.save(G.state_dict(), "MNIST_cGAN_results/generator_param.pth")
-    # torch.save(D.state_dict(), "MNIST_cGAN_results/discriminator_paraṃ.pth")
-    with open('MNIST_cGAN_results/train_hist.pkl', 'wb') as f:
-        pickle.dump(train_hist, f)
 
-    show_train_hist(train_hist, save=True, path='MNIST_cGAN_results/MNIST_cGAN_train_hist.png')
-
-    images = []
-    for e in range(epochs):
-        img_name = 'MNIST_cGAN_results/Fixed_results/MNIST_cGAN_' + str(e + 1) + '.png'
-        images.append(imageio.imread(img_name))
-    imageio.mimsave('MNIST_cGAN_results/generation_animation.gif', images, fps=5)
 
 if __name__ == "__main__":
     main()

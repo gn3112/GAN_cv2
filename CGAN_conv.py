@@ -11,6 +11,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import datasets, transforms
 from torchvision.utils import make_grid, save_image
 import time
+from matplotlib.ticker import MaxNLocator
+
 
 class Generator(nn.Module):
     def __init__(self,latent_size):
@@ -109,7 +111,7 @@ def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader,
         disc_optimiser.zero_grad()
         # Train discriminator to identify real data
         real_y = discriminator(real_x,y_fill.to(device))
-        real_loss = F.binary_cross_entropy(real_y, torch.ones_like(real_y))
+        real_loss = F.binary_cross_entropy(real_y, torch.ones_like(real_y)*0.9)
         real_loss.backward()
 
         # Train discriminator to identify fake data
@@ -126,7 +128,7 @@ def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader,
 
         # Train generator to fool discriminator on fake data
         fake_y = discriminator(fake_x.to(device),y_fill.to(device))
-        fake_loss = F.binary_cross_entropy(fake_y, torch.ones_like(fake_y))
+        fake_loss = F.binary_cross_entropy(fake_y, torch.ones_like(fake_y)*0.9)
         fake_loss.backward()
         gen_optimiser.step()
         loss = fake_loss.detach().cpu().numpy()
@@ -139,6 +141,8 @@ def train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader,
     end_time = time.time()
     train_time = end_time - start_time
     print("Training time: ", train_time)
+    loss_d = 1/(batch_idx+1) * sum(loss_d)
+    loss_g = 1/(batch_idx+1) * sum(loss_g)
     return loss_d, loss_g,train_time
 
 def sample(generator,device):
@@ -172,7 +176,7 @@ def export_nn_model(model,path):
     # model.eval()
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else print("cuda not available"))
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     create_directories()
     # f = open("cDCGAN_log.txt","w+")
@@ -209,8 +213,8 @@ def main():
     loss_g_log = []
     for f in range(epoch):
         loss_d, loss_g, train_time = train(generator, discriminator, gen_optimiser, disc_optimiser, train_loader, batch_size, latent_size, f, device)
-        loss_d_log = np.append(loss_d_log,loss_d)
-        loss_g_log = np.append(loss_g_log,loss_g)
+        loss_d_log.append(loss_d)
+        loss_g_log.append(loss_g)
 
             # learning rate decay
         if (f+1) == 11:
@@ -228,15 +232,18 @@ def main():
 
         # log model info
         # f.write(train_time)
-    plt.figure()
-    plt.plot(np.arange(0,len(loss_d_log),1),loss_d_log, label='D_loss')
-    plt.plot(np.arange(0,len(loss_g_log),1),loss_g_log, label='G_loss')
-    plt.legend(loc=4)
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('cDCGAN/loss.png')
+
+        fig2 = plt.figure()
+        ax2 = fig2.gca()
+        plt.plot(loss_d_log, label='D_loss')
+        plt.plot(loss_g_log, label='G_loss')
+        plt.legend(loc=4)
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.grid(True)
+        ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig('cDCGAN/loss.png')
+        plt.close(fig2)
 
     export_nn_model(generator.cpu(),'model_cDCGAN.pth')
 
