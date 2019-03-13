@@ -13,9 +13,10 @@ from torch.autograd import Variable
 # G(z)
 class generator(nn.Module):
     # initializers
-    def __init__(self):
+    def __init__(self, latent_size):
         super(generator, self).__init__()
-        self.fc1_1 = nn.Linear(100, 256)
+        self.latent_size = latent_size
+        self.fc1_1 = nn.Linear(latent_size, 256)
         self.fc1_1_bn = nn.BatchNorm1d(256)
         self.fc1_2 = nn.Linear(10, 256)
         self.fc1_2_bn = nn.BatchNorm1d(256)
@@ -38,7 +39,6 @@ class generator(nn.Module):
         x = F.relu(self.fc2_bn(self.fc2(x)))
         x = F.relu(self.fc3_bn(self.fc3(x)))
         x = F.tanh(self.fc4(x))
-
         return x
 
 class discriminator(nn.Module):
@@ -74,23 +74,43 @@ def normal_init(m, mean, std):
         m.weight.data.normal_(mean, std)
         m.bias.data.zero_()
 
-temp_z_ = torch.rand(10, 100)
-fixed_z_ = temp_z_
-fixed_y_ = torch.zeros(10, 1)
-for i in range(9):
-    fixed_z_ = torch.cat([fixed_z_, temp_z_], 0)
-    temp = torch.ones(10,1) + i
-    fixed_y_ = torch.cat([fixed_y_, temp], 0)
-
-
-fixed_z_ = Variable(fixed_z_, volatile=True)
-fixed_y_label_ = torch.zeros(100, 10)
-fixed_y_label_.scatter_(1, fixed_y_.type(torch.LongTensor), 1)
-fixed_y_label_ = Variable(fixed_y_label_, volatile=True)
-def show_result(num_epoch, show = False, save = False, path = 'result.png'):
+def save_results(p, G, fixed_z_, fixed_y_label_, show = False, save = False, path = 'results.png',device='s'):
 
     G.eval()
-    test_images = G(fixed_z_, fixed_y_label_)
+    test_images = G(fixed_z_.to(device), fixed_y_label_.to(device))
+    G.train()
+
+    for j in range(len(test_images)):
+        plt.imshow(test_images[j].cpu().data.view(28, 28).numpy(), cmap='gray')
+        if j < 10:
+            real_path = path + '0/' + str(j) + '_' +str(p) + '.png'
+        elif j > 9 and j < 20:
+            real_path = path + '1/' + str(j) + '_' +str(p) + '.png'
+        elif j > 19 and j < 30:
+            real_path = path + '2/' + str(j) + '_' +str(p) + '.png'
+        elif j > 29 and j < 40:
+            real_path = path + '3/' + str(j) + '_' +str(p) + '.png'
+        elif j > 39 and j < 50:
+            real_path = path + '4/' + str(j) + '_' +str(p) + '.png'
+        elif j > 49 and j < 60:
+            real_path = path + '5/' + str(j) + '_' +str(p) + '.png'
+        elif j > 59 and j < 70:
+            real_path = path + '6/' + str(j) + '_' +str(p) + '.png'
+        elif j > 69 and j < 80:
+            real_path = path + '7/' + str(j) + '_' +str(p) + '.png'
+        elif j > 79 and j < 90:
+            real_path = path + '8/' + str(j) + '_' +str(p) + '.png'
+        elif j > 89:
+            real_path = path + '9/' + str(j) + '_' +str(p) + '.png'
+
+        plt.savefig(real_path)
+
+
+
+def show_result(num_epoch, G, fixed_z_, fixed_y_label_, show = False, save = False, path = 'result.png', device= 's'):
+
+    G.eval()
+    test_images = G(fixed_z_.to(device), fixed_y_label_.to(device))
     G.train()
 
     size_figure_grid = 10
@@ -138,65 +158,8 @@ def show_train_hist(hist, show = False, save = False, path = 'Train_hist.png'):
     else:
         plt.close()
 
-# training parameters
-batch_size = 128
-lr = 0.0002
-train_epoch = 2
+def train(G, D, G_optimizer, D_optimizer, train_loader, epoch, BCE_loss, device):
 
-# data_loader
-transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-])
-train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('data', train=True, download=True, transform=transform),
-    batch_size=batch_size, shuffle=True)
-
-# network
-G = generator()
-D = discriminator()
-G.weight_init(mean=0, std=0.02)
-D.weight_init(mean=0, std=0.02)
-G
-D
-
-# Binary Cross Entropy loss
-BCE_loss = nn.BCELoss()
-
-# Adam optimizer
-G_optimizer = optim.Adam(G.parameters(), lr=lr, betas=(0.5, 0.999))
-D_optimizer = optim.Adam(D.parameters(), lr=lr, betas=(0.5, 0.999))
-
-# results save folder
-if not os.path.isdir('MNIST_cGAN_results'):
-    os.mkdir('MNIST_cGAN_results')
-if not os.path.isdir('MNIST_cGAN_results/Fixed_results'):
-    os.mkdir('MNIST_cGAN_results/Fixed_results')
-
-train_hist = {}
-train_hist['D_losses'] = []
-train_hist['G_losses'] = []
-train_hist['per_epoch_ptimes'] = []
-train_hist['total_ptime'] = []
-
-print('training start!')
-start_time = time.time()
-for epoch in range(train_epoch):
-    D_losses = []
-    G_losses = []
-
-    # learning rate decay
-    if (epoch+1) == 30:
-        G_optimizer.param_groups[0]['lr'] /= 10
-        D_optimizer.param_groups[0]['lr'] /= 10
-        print("learning rate change!")
-
-    if (epoch+1) == 40:
-        G_optimizer.param_groups[0]['lr'] /= 10
-        D_optimizer.param_groups[0]['lr'] /= 10
-        print("learning rate change!")
-
-    epoch_start_time = time.time()
     for x_, y_ in train_loader:
         # train discriminator D
         D.zero_grad()
@@ -210,8 +173,8 @@ for epoch in range(train_epoch):
 
         x_ = x_.view(-1, 28 * 28)
         x_, y_label_, y_real_, y_fake_ = Variable(x_), Variable(y_label_), Variable(y_real_), Variable(y_fake_)
-        D_result = D(x_, y_label_).squeeze()
-        D_real_loss = BCE_loss(D_result, y_real_)
+        D_result = D(x_.to(device), y_label_.to(device)).squeeze()
+        D_real_loss = BCE_loss(D_result, y_real_.to(device))
 
         z_ = torch.rand((mini_batch, 100))
         y_ = (torch.rand(mini_batch, 1) * 10).type(torch.LongTensor)
@@ -219,18 +182,17 @@ for epoch in range(train_epoch):
         y_label_.scatter_(1, y_.view(mini_batch, 1), 1)
 
         z_, y_label_ = Variable(z_), Variable(y_label_)
-        G_result = G(z_, y_label_)
 
-        D_result = D(G_result, y_label_).squeeze()
-        D_fake_loss = BCE_loss(D_result, y_fake_)
+        G_result = G(z_.to(device), y_label_.to(device))
+
+        D_result = D(G_result.to(device), y_label_.to(device)).squeeze()
+        D_fake_loss = BCE_loss(D_result, y_fake_.to(device))
         D_fake_score = D_result.data.mean()
 
-        D_train_loss = D_real_loss + D_fake_loss
+        D_loss = D_real_loss + D_fake_loss
 
-        D_train_loss.backward()
+        D_loss.backward()
         D_optimizer.step()
-
-        D_losses.append(D_train_loss.item())
 
         # train generator G
         G.zero_grad()
@@ -242,41 +204,129 @@ for epoch in range(train_epoch):
 
         z_, y_label_ = Variable(z_), Variable(y_label_)
 
-        G_result = G(z_, y_label_)
-        D_result = D(G_result, y_label_).squeeze()
-        G_train_loss = BCE_loss(D_result, y_real_)
-        G_train_loss.backward()
+        G_result = G(z_.to(device), y_label_.to(device))
+        D_result = D(G_result.to(device), y_label_.to(device)).squeeze()
+        G_loss = BCE_loss(D_result, y_real_.to(device))
+        G_loss.backward()
         G_optimizer.step()
 
-        G_losses.append(G_train_loss.item())
+    return D_loss, G_loss
 
-    epoch_end_time = time.time()
-    per_epoch_ptime = epoch_end_time - epoch_start_time
+def main():
+    device = torch.device("cuda:0" if torch.cuda.is_available() else print("cuda not available"))
+
+    plt.interactive(True)
+    latent_size = 100
+    batch_size = 128
+    epochs = 50
+    # data_loader
+    transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=1),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5,), (0.5,))
+     ])
+
+    train_loader = torch.utils.data.DataLoader(
+    datasets.MNIST('data', train=True, download=True, transform=transform),
+    batch_size=batch_size, shuffle=True)
+
+    temp_z_ = torch.rand(10, 100)
+    fixed_z_ = temp_z_
+    fixed_y_ = torch.zeros(10, 1)
+    for i in range(9):
+        fixed_z_ = torch.cat([fixed_z_, temp_z_], 0)
+        temp = torch.ones(10,1) + i
+        fixed_y_ = torch.cat([fixed_y_, temp], 0)
 
 
-    print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), train_epoch, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),
-                                                              torch.mean(torch.FloatTensor(G_losses))))
-    fixed_p = 'MNIST_cGAN_results/Fixed_results/MNIST_cGAN_' + str(epoch + 1) + '.png'
-    show_result((epoch+1), save=True, path=fixed_p)
-    train_hist['D_losses'].append(torch.mean(torch.FloatTensor(D_losses)))
-    train_hist['G_losses'].append(torch.mean(torch.FloatTensor(G_losses)))
-    train_hist['per_epoch_ptimes'].append(per_epoch_ptime)
+    fixed_z_ = Variable(fixed_z_,requires_grad=False)
+    fixed_y_label_ = torch.zeros(100, 10)
+    fixed_y_label_.scatter_(1, fixed_y_.type(torch.LongTensor), 1)
+    fixed_y_label_ = Variable(fixed_y_label_, requires_grad=False)
 
-end_time = time.time()
-total_ptime = end_time - start_time
-train_hist['total_ptime'].append(total_ptime)
+    # network
+    G = generator(latent_size)
+    D = discriminator()
+    G.to(device)
+    D.to(device)
+    G.weight_init(mean=0, std=0.02)
+    D.weight_init(mean=0, std=0.02)
 
-print("Avg one epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), train_epoch, total_ptime))
-print("Training finish!... save training results")
-torch.save(G.state_dict(), "MNIST_cGAN_results/generator_param.pkl")
-torch.save(D.state_dict(), "MNIST_cGAN_results/discriminator_param.pkl")
-with open('MNIST_cGAN_results/train_hist.pkl', 'wb') as f:
-    pickle.dump(train_hist, f)
+    # Binary Cross Entropy loss
+    BCE_loss = nn.BCELoss()
+    # Adam optimizer
+    G_optimizer = optim.Adam(G.parameters(), lr= 0.0002, betas=(0.5, 0.999))
+    D_optimizer = optim.Adam(D.parameters(), lr= 0.0002, betas=(0.5, 0.999))
 
-show_train_hist(train_hist, save=True, path='MNIST_cGAN_results/MNIST_cGAN_train_hist.png')
+    # results save folder
+    if not os.path.isdir('MNIST_cGAN_results'):
+        os.mkdir('MNIST_cGAN_results')
+    if not os.path.isdir('MNIST_cGAN_results/Fixed_results'):
+        os.mkdir('MNIST_cGAN_results/Fixed_results')
+    for k in range(10):
+        if not os.path.isdir('MNIST_cGAN_results/' + str(k)):
+            os.mkdir('MNIST_cGAN_results/' + str(k))
 
-images = []
-for e in range(train_epoch):
-    img_name = 'MNIST_cGAN_results/Fixed_results/MNIST_cGAN_' + str(e + 1) + '.png'
-    images.append(imageio.imread(img_name))
-imageio.mimsave('MNIST_cGAN_results/generation_animation.gif', images, fps=5)
+    train_hist = {}
+    train_hist['D_losses'] = []
+    train_hist['G_losses'] = []
+    train_hist['per_epoch_ptimes'] = []
+    train_hist['total_ptime'] = []
+
+    print('training start!')
+    start_time = time.time()
+    D_losses = []
+    G_losses = []
+    for epoch in range(epochs):
+        epoch_start_time = time.time()
+        # learning rate decay
+        if (epoch+1) == 30:
+            G_optimizer.param_groups[0]['lr'] /= 10
+            D_optimizer.param_groups[0]['lr'] /= 10
+            print("learning rate change!")
+
+        if (epoch+1) == 40:
+            G_optimizer.param_groups[0]['lr'] /= 10
+            D_optimizer.param_groups[0]['lr'] /= 10
+            print("learning rate change!")
+
+        D_loss, G_loss = train(G, D, G_optimizer, D_optimizer, train_loader, epoch, BCE_loss, device)
+
+        G_losses.append(G_loss.item())
+        D_losses.append(D_loss.item())
+
+        epoch_end_time = time.time()
+        per_epoch_ptime = epoch_end_time - epoch_start_time
+
+
+        print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), epochs, per_epoch_ptime, torch.mean(torch.FloatTensor(D_losses)),
+                                                                  torch.mean(torch.FloatTensor(G_losses))))
+        fixed_p = 'MNIST_cGAN_results/Fixed_results/MNIST_cGAN_' + str(epoch + 1) + '.png'
+        show_result((epoch+1), G, fixed_z_, fixed_y_label_, save=True, path=fixed_p, device=device)
+        train_hist['D_losses'].append(torch.mean(torch.FloatTensor(D_losses)))
+        train_hist['G_losses'].append(torch.mean(torch.FloatTensor(G_losses)))
+        train_hist['per_epoch_ptimes'].append(per_epoch_ptime)
+
+    end_time = time.time()
+    total_ptime = end_time - start_time
+    train_hist['total_ptime'].append(total_ptime)
+
+
+    # Storing labeled, generated images in folder:
+    print("Avg one epoch ptime: %.2f, total %d epochs ptime: %.2f" % (torch.mean(torch.FloatTensor(train_hist['per_epoch_ptimes'])), epochs, total_ptime))
+    print("Training finish!... save training results")
+    torch.save(G.state_dict(), "MNIST_cGAN_results/generator_param.pth")
+    # torch.save(D.state_dict(), "MNIST_cGAN_results/discriminator_paraṃ.pth")
+    with open('MNIST_cGAN_results/train_hist.pkl', 'wb') as f:
+        pickle.dump(train_hist, f)
+
+    show_train_hist(train_hist, save=True, path='MNIST_cGAN_results/MNIST_cGAN_train_hist.png')
+
+    images = []
+    for e in range(epochs):
+        img_name = 'MNIST_cGAN_results/Fixed_results/MNIST_cGAN_' + str(e + 1) + '.png'
+        images.append(imageio.imread(img_name))
+    imageio.mimsave('MNIST_cGAN_results/generation_animation.gif', images, fps=5)
+
+if __name__ == "__main__":
+    main()
