@@ -185,6 +185,13 @@ def main():
 
     generator = Generator(latent_size)
     discriminator = Discriminator()
+    for idx, m in enumerate(generator.modules()):
+        print(idx, "->", m)
+
+    print("Discriminator:")
+    for idx, m in enumerate(discriminator.modules()):
+        print(idx, "->", m)
+        
     gen_optimiser = optim.Adam(generator.parameters(), lr=2e-4, betas=(0.5, 0.9))
     disc_optimiser = optim.Adam(discriminator.parameters(), lr=2e-4, betas=(0.5, 0.9))
     generator.weight_init(mean=0.0, std=0.02)

@@ -3,7 +3,7 @@ import torch
 from torchvision import datasets, transforms
 from torch import nn, optim
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset, Subset
 from torch.utils.data.sampler import SubsetRandomSampler
 import os
 from scipy.stats import entropy
@@ -43,7 +43,7 @@ def test(classifier, test_loader):
     print("Accuracy on 10K test: ",accuracy)
     return accuracy
 
-def train(classifier, optimiser, train_loader,train_fake_loader,ep):
+def train(classifier, optimiser, train_loader,ep):
     for batch_idx, (img, label) in enumerate(train_loader):
         optimiser.zero_grad()
         proba = classifier(img)
@@ -59,6 +59,7 @@ def inception_score(classifier, indices, data):
     n_img = 10000
     batch_size = n_img // 10
     data_loader = DataLoader(data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
+    print(len(data))
     proba_all = []
     label_all = []
     for batch_idx, (img, label) in enumerate(data_loader):
@@ -114,7 +115,7 @@ def main():
     random.shuffle(indices)
     datafake_loader = DataLoader(fake_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
 
-    tr_fake_data = datasets.ImageFolder(root='cDCGAN_fake',
+    tr_fake_data = datasets.ImageFolder(root='CGAN_50ep_fake',
                                        transform=transform)
     indices = list(range(len(fake_data)))
     random.shuffle(indices)

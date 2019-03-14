@@ -12,19 +12,19 @@ from torchvision.utils import make_grid, save_image
 from CGAN import generator
 import time
 
-n_img = 1000
+n_img = 10200
 batch_size = 100
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-if not os.path.isdir('CGAN_20ep_fake/'):
-    os.mkdir('CGAN_20ep_fake/')
+if not os.path.isdir('CGAN_50ep_fake/'):
+    os.mkdir('CGAN_50ep_fake/')
 
 for label in range(10):
-    if not os.path.isdir('CGAN_20ep_fake/' + str(label)):
-        os.mkdir('CGAN_20ep_fake/' + str(label))
+    if not os.path.isdir('CGAN_50ep_fake/' + str(label)):
+        os.mkdir('CGAN_50ep_fake/' + str(label))
 
 generator = generator(100)
-generator.load_state_dict(torch.load('generator_param.pkl'))
+generator.load_state_dict(torch.load('generator_cGan_50ep.pkl'))
 generator.eval()
 
 y_label = torch.tensor([])
@@ -39,6 +39,7 @@ for epoch in range(n_img//batch_size):
     z_samples = torch.randn(batch_size, 100)
     start = time.time()
     images = generator(z_samples.to(device), y_label.to(device))
+    print(images.size())
     images = torch.reshape(images, (batch_size,1,28,-1))
     end = time.time()
     print(end-start)
@@ -46,7 +47,7 @@ for epoch in range(n_img//batch_size):
     for img in range((images.size())[0]-1):
         if img % (batch_size//10) == 0 and img!=0:
             label += 1
-        path = 'CGAN_20ep_fake/' + str(label) + '/' + str(epoch) + '_' + str(img) + '.png'
+        path = 'CGAN_50ep_fake/' + str(label) + '/' + str(epoch) + '_' + str(img) + '.png'
         save_image(images[img,],path)
 
     print('Saved: ' + str((epoch+1)*batch_size) + ' images ')
