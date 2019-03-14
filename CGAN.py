@@ -226,17 +226,16 @@ def train(G, D, G_optimizer, D_optimizer, train_loader, epoch, BCE_loss, device)
 def sample(generator, device):
     n_img = 100
     generator.eval()
+    z_samples = torch.randn(n_img, 100)
     with torch.no_grad():
-        z_samples = torch.randn(n_img, 100)
         z_interp = torch.zeros(n_img, 10)
-
         y_label = torch.tensor([])
         for digits in range(10):
             sgl_label = torch.zeros(n_img//10,10)
             sgl_label[:,digits] = 1
             y_label = torch.cat([y_label,sgl_label],0)
 
-        img = generator(z_samples.to(device),y_label.to(device))
+        img = generator(z_samples.to(device),y_label.to(device)) #.unsqueeze(-1)
         img = torch.reshape(img, (100,1,28,-1))
         samples = make_grid(img,nrow=10, padding=2)
         # interps = make_grid(generator(z_interp.to(device),y_label.to(device)),nrow=6, padding=0)
@@ -245,6 +244,7 @@ def sample(generator, device):
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.set_axis_off()
+        print((np.transpose((samples).numpy(), [1, 2, 0])).shape)
         ax.imshow(np.transpose((samples).numpy(), [1, 2, 0]))
     return fig
 def main():

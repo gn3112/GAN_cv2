@@ -43,7 +43,7 @@ def test(classifier, test_loader):
     print("Accuracy on 10K test: ",accuracy)
     return accuracy
 
-def train(classifier, optimiser, train_loader,ep):
+def train(classifier, optimiser, train_loader,train_fake_loader,ep):
     for batch_idx, (img, label) in enumerate(train_loader):
         optimiser.zero_grad()
         proba = classifier(img)
@@ -108,25 +108,32 @@ def main():
     test_data = datasets.MNIST(data_path, train=False, transform=transform)
     indices = list(range(len(train_data)))
     train_loader = DataLoader(train_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:60000]))
+    fake_data = datasets.ImageFolder(root='CGAN_50ep_fake',
+                                           transform=transform)
+    indices = list(range(len(fake_data)))
+    random.shuffle(indices)
+    datafake_loader = DataLoader(fake_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
+
+    tr_fake_data = datasets.ImageFolder(root='cDCGAN_fake',
+                                       transform=transform)
+    indices = list(range(len(fake_data)))
+    random.shuffle(indices)
+    datafake_loader = DataLoader(fake_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:]))
+
     test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
     classifier = Classifier()
     optimiser = optim.Adam(classifier.parameters(), lr=2e-3, betas=(0.5, 0.999))
 
     # for ep in range(epoch):
-    #     train(classifier, optimiser, train_loader,ep)
+    #     train(classifier, optimiser, train_loader,train_fake_loader,ep)
 
     classifier.load_state_dict(torch.load("classifier_mnist.pth"))
     classifier.eval()
 
     # torch.save(classifier.state_dict(),"classifier_mnist.pth")
 
-    path_fake_data = "/cDCGAN_fake/"
-    fake_data = datasets.ImageFolder(root='cDCGAN_fake',
-                                           transform=transform)
-    indices = list(range(len(fake_data)))
-    random.shuffle(indices)
-    datafake_loader = DataLoader(fake_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
+
 
     accuracy = test(classifier, datafake_loader)
     incep_score = inception_score(classifier, indices, fake_data)
