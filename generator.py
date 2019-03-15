@@ -16,15 +16,15 @@ n_img = 10200
 batch_size = 100
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-if not os.path.isdir('CGAN_50ep_fake/'):
-    os.mkdir('CGAN_50ep_fake/')
+if not os.path.isdir('cGAN_DG_fake/'):
+    os.mkdir('cGAN_DG_fake/')
 
 for label in range(10):
-    if not os.path.isdir('CGAN_50ep_fake/' + str(label)):
-        os.mkdir('CGAN_50ep_fake/' + str(label))
+    if not os.path.isdir('cGAN_DG_fake/' + str(label)):
+        os.mkdir('cGAN_DG_fake/' + str(label))
 
 generator = generator(100)
-generator.load_state_dict(torch.load('generator_cGan_50ep.pkl'))
+generator.load_state_dict(torch.load('generator_param_DG.pkl'))
 generator.eval()
 
 y_label = torch.tensor([])
@@ -47,7 +47,7 @@ for epoch in range(n_img//batch_size):
     for img in range((images.size())[0]-1):
         if img % (batch_size//10) == 0 and img!=0:
             label += 1
-        path = 'CGAN_50ep_fake/' + str(label) + '/' + str(epoch) + '_' + str(img) + '.png'
+        path = 'cGAN_DG_fake/' + str(label) + '/' + str(epoch) + '_' + str(img) + '.png'
         save_image(images[img,],path)
 
     print('Saved: ' + str((epoch+1)*batch_size) + ' images ')

@@ -28,7 +28,8 @@ class Classifier(nn.Module):
         x = F.relu(self.conv3(x))
         x = x.view(x.size(0),-1)
         x = F.relu(self.fc1(x))
-        x = (F.softmax(self.fc2(x), dim=-1)).log()
+        # x = (F.softmax(self.fc2(x), dim=-1)).log()
+        x = self.fc2(x)
         return x
 
 def test(classifier, test_loader):
@@ -109,13 +110,13 @@ def main():
     test_data = datasets.MNIST(data_path, train=False, transform=transform)
     indices = list(range(len(train_data)))
     train_loader = DataLoader(train_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:60000]))
-    fake_data = datasets.ImageFolder(root='CGAN_50ep_fake',
+    fake_data = datasets.ImageFolder(root='cGAN_DG_fake',
                                            transform=transform)
     indices = list(range(len(fake_data)))
     random.shuffle(indices)
     datafake_loader = DataLoader(fake_data, batch_size=batch_size, drop_last=True, num_workers=4,sampler=SubsetRandomSampler(indices[:10000]))
 
-    tr_fake_data = datasets.ImageFolder(root='CGAN_50ep_fake',
+    tr_fake_data = datasets.ImageFolder(root='cGAN_DG_fake',
                                        transform=transform)
     indices = list(range(len(fake_data)))
     random.shuffle(indices)
